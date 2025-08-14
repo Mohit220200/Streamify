@@ -1,58 +1,62 @@
-import mongoose from "mongoose";
-import dotenv from "dotenv";
-import bcrypt from "bcryptjs";
-import User from "./models/user.js";
-import FriendRequest from "./models/FriendRequest.js";
+// backend/src/seed.js
 
-// 1. Load environment variables
-dotenv.config();
+import { connect } from "mongoose";
+import { hash } from "bcryptjs";
+import { config } from "dotenv";
+config();
 
-// 2. Connect to MongoDBs
-await mongoose.connect(process.env.MONGO_URI, {
-  useNewUrlParser: true,
-  useUnifiedTopology: true,
-});
+import User, { deleteMany } from "./models/User";
+import FriendRequest, { deleteMany as _deleteMany } from "./models/FriendRequest";
 
-// 3. Clear existing data
-await User.deleteMany({});
-await FriendRequest.deleteMany({});
+const MONGO_URI = process.env.MONGO_URI;
 
-// 4. Create hashed passwords
-const hashedPassword1 = await bcrypt.hash("password123", 10);
-const hashedPassword2 = await bcrypt.hash("password123", 10);
+async function seedDB() {
+  try {
+    await connect(MONGO_URI);
+    console.log("✅ Connected to MongoDB");
 
-// 5. Create users
-const user1 = new User({
-  fullName: "Alice Johnson",
-  email: "alice@example.com",
-  password: hashedPassword1,
-  nativeLanguage: "english",
-  learningLanguage: "spanish",
-  location: "New York",
-});
+    // Clear existing users and friend requests
+    await deleteMany({});
+    await _deleteMany({});
+    console.log("🧹 Old data deleted");
 
-const user2 = new User({
-  fullName: "Carlos Garcia",
-  email: "carlos@example.com",
-  password: hashedPassword2,
-  nativeLanguage: "spanish",
-  learningLanguage: "english",
-  location: "Madrid",
-});
+    // Hash passwords
+    const hashedPassword1 = await hash("123456", 10);
+    const hashedPassword2 = await hash("123456", 10);
 
-// 6. Save users
-await user1.save();
-await user2.save();
+    // Create users
+    const user1 = new User({
+      fullName: "Alice",
+      email: "alice@example.com",
+      password: hashedPassword1,
+    });
 
-// 7. Create accepted friend request
-const friendRequest = new FriendRequest({
-  sender: user1._id,
-  recipient: user2._id,
-  status: "accepted",
-});
+    const user2 = new User({
+      fullName: "Bob",
+      email: "bob@example.com",
+      password: hashedPassword2,
+    });
 
-await friendRequest.save();
+    await user1.save();
+    await user2.save();
+    console.log("👥 Users created");
 
-console.log("✅ Seed data created successfully!");
+    // Create accepted friend request between them
+    const friendRequest = new FriendRequest({
+      sender: user1._id,
+      recipient: user2._id,
+      status: "accepted",
+    });
 
-process.exit(); // Exit process after seeding
+    await friendRequest.save();
+    console.log("✅ Friend request created");
+
+    console.log("🌱 Seed data inserted successfully!");
+    process.exit(0);
+  } catch (error) {
+    console.error("❌ Error seeding database:", error);
+    process.exit(1);
+  }
+}
+
+seedDB();
